@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+
+        #border2,
+        #border1 {
+            opacity: 0;
+        }
+        #adjacencyMatrix:hover #border2,
+        #adjacencyMatrix:hover #border1 {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+<script>
+    let rectSize=25;
+    let color=d3.scaleQuantize(d3.schemeBlues[9])
+    function createAdjacencyMatrix(nodes,edges) {
+        var edgeHash = {};
+        for (x in edges) {
+            var id = edges[x].source + "-" + edges[x].target;
+            edgeHash[id] = edges[x];
+        }
+        matrix = [];
+        //create all possible edges
+        for (const [a, node_a] of nodes.entries()) {
+            for (const [b, node_b] of nodes.entries()) {
+                var grid = {id: node_a.id + "-" + node_b.id, x: a, y: b, sharedfollowers: 0};
+                if (edgeHash[grid.id]) {
+                    grid.sharedfollowers = parseInt(edgeHash[grid.id].sharedfollowers);
+                }
+                matrix.push(grid);
+            }
+        }
+        return matrix;
+    }
+
+    var matriceElt = d3.select("body").append("svg")
+        .attr("width", 1000)
+        .attr("height", 1000)
+        .append("g")
+        .attr("transform", "translate(50,50)")
+        .attr("id", "adjacencyMatrix");
+
+
+
+
+    d3.csv("./liens.csv").then(function (liens) {
+        //recuperer valeur maximum de sharedfollowers
+        max=d3.max(liens,function (d) {
+            return parseInt(d.sharedfollowers)
+        })
+        color.domain([0,max])
+        d3.csv("./noeuds.csv").then(function (noeuds) {
+            var matrice = createAdjacencyMatrix(noeuds, liens)
+            var scaleSize = noeuds.length * rectSize;
+
+            x = d3.scaleBand()
+                .domain(noeuds.map(function (el) {return el.id}))
+                .range([0, scaleSize])
+            y = d3.scaleBand()
+                .domain(noeuds.map(function (el) {return el.id}).reverse()) // reverse() inverse l'ordre des éléments pour que l'affichage se fasse dans le bon ordre en x : testez sans pour voir ce qui se passe.
+                .range([scaleSize, 0])
+
+            console.log(matrice)
+            matriceElt.selectAll("rect").data(matrice)
+                .enter()
+                .append("rect")
+                .attr("class", "grid")
+                .attr("width", rectSize)
+                .attr("height", rectSize)
+
+                .style("stroke", "black")
+                .style("stroke-width", 0.1)
+                .attr("x", function (d) {
+                    return d.x * rectSize;
+                })
+                .attr("y", function (d) {
+                    return d.y * rectSize;
+                })
+                .style("fill", function (d) {
+                    return color(d.sharedfollowers)
+                })
+
+            d3.select("#adjacencyMatrix")
+                .append("g")
+                .attr("transform", `translate(0,${scaleSize})`)
+                .call(d3.axisBottom(x))
+                .selectAll("text")
+                .style("text-anchor", "start")
+                .attr("transform", "rotate(45) translate(10,-5)")
+
+            d3.select("#adjacencyMatrix")
+                .append("g")
+                .call(d3.axisLeft(y))
+            let border1=d3.select("#adjacencyMatrix")
+                .append("rect")
+                .attr("id", "border1")
+                .attr("width", rectSize)
+                .attr("height", scaleSize)
+                .style("fill", "none")
+                .style("stroke", "black")
+                .style("stroke-width", 2)
+
+            let border2=d3.select("#adjacencyMatrix")
+                .append("rect")
+                .attr("id", "border2")
+                .attr("width", scaleSize)
+                .attr("height", rectSize)
+                .style("fill", "none")
+                .style("stroke", "black")
+                .style("stroke-width", 2)
+            d3.selectAll(".grid")
+                .on("mouseover", function (d) {
+                    try {
+                        d3.select("#border1")
+                            .transition()
+                            .ease(d3.easePolyInOut.exponent(2))
+                            .attr("transform", `translate(${d.explicitOriginalTarget.attributes.x.value},0)`)
+                        d3.select("#border2")
+                            .transition()
+                            .ease(d3.easePolyInOut.exponent(2))
+                            .attr("transform", `translate(0,${d.explicitOriginalTarget.attributes.y.value})`)
+                    }
+                    catch (e) {
+                    }
+
+                })
+        })
+
+    })
+
+
+
+
+
+
+
+
+
+</script>
+
+
+</body>
+</html>
